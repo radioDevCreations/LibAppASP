@@ -1,62 +1,60 @@
-@{ ViewBag.Title = "Customers";
-                Layout = "~/Views/Shared/_Layout.cshtml"; }
-
+@{
+    ViewBag.Title = "Customers";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
 <h2>Customers</h2>
-
-<p>
-    <a class="btn btn-primary" asp-action="New">New Customer</a>
-</p>
-
+@if (User.IsInRole("Owner"))
+{
+    <p>
+        <a class="btn btn-primary" asp-action="New">New Customer</a>
+    </p>
+}
 <table id="customers" class="table table-hover">
     <thead>
         <tr>
             <th>Customer</th>
-            <th>Discount Rate</th>
-            <th>Actions</th>
+            <th>Membership Type</th>
+            @if (User.IsInRole("Owner"))
+            {
+                <th>Delete</th>
+            }
         </tr>
     </thead>
     <tbody>
     </tbody>
 </table>
 
+
 @section Scripts
 {
     <script>
-        <script>
         $(document).ready(function () {
             $("#customers").DataTable({
                 ajax: {
-                    url: "api/customers",
+                    url: "api/customers/",
                     dataSrc: ""
                 },
                 columns: [
                     {
                         data: "name",
                         render: function (data, type, customer) {
-                            return "<a href='customers/Details/" + customer.id + "'>" + customer.name + "</a>";
+                            return "<a href='customers/details/" + customer.id + "'>" + customer.name + "</a>";
                         }
                     },
                     {
-                        data: "membershipType.discountRate"
+                        data: "membershipType.name"
                     },
-                    {
-                        data: "id",
-                        render: function (data) {
-                           @if(!User.IsInRole("Administrator"))
+                    @if(User.IsInRole("Owner")) {
+                        <text>
                             {
-                                <text>
-                                    const deleteBtn = "<button class='btn btn-secondary js-delete' data-customer-id=" + data + ">Delete</button>";
-                                    return deleteBtn;
-                                </text>
+                                data: "id",
+                                render: function (data) {
+                                    return "<button class='btn btn-secondary js-delete' data-customer-id=" + data + ">Delete</button>";
+                                }
                             }
-                            else
-                            {
-                                 <text>
-                                    return null;
-                                </text>
-                            }
-                        }
+                        </text>
                     }
+
                 ]
             });
         });
@@ -68,20 +66,21 @@
             $("#customers").on("click", ".js-delete", function () {
                 var button = $(this);
                 bootbox.confirm({
-                    title: "Delete user",
                     message: "Confirm customer deletion?",
                     buttons: {
-                        cancel: {
-                            label: '<i class="fa fa-times"></i> Cancel'
-                        },
                         confirm: {
-                            label: '<i class="fa fa-check"></i> Confirm'
+                            label: 'Yes',
+                            className: 'btn-success'
+                        },
+                        cancel: {
+                            label: 'No',
+                            className: 'btn-danger'
                         }
                     },
                     callback: function (result) {
                         if (result) {
                             $.ajax({
-                                url: "api/customers/" + button.attr("data-customer-id"),
+                                url: "/api/customers/" + button.attr("data-customer-id"),
                                 method: "DELETE",
                                 success: function () {
                                     table.row(button.parents("tr")).remove().draw();

@@ -1,11 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 using LibApp.Data;
 using LibApp.Dtos;
 using LibApp.Models;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -20,7 +17,6 @@ namespace LibApp.Controllers.Api
             _context = context;
         }
 
-        // POST /api/newRentals
         [HttpPost]
         public IActionResult CreateNewRental(NewRentalDto newRental)
         {

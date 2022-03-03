@@ -1,22 +1,19 @@
 ﻿using AutoMapper;
 using LibApp.Data;
 using LibApp.Dtos;
+using LibApp.Interfaces;
 using LibApp.Models;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
-using System.Threading.Tasks;
 using System.Web.Http;
 using HttpDeleteAttribute = Microsoft.AspNetCore.Mvc.HttpDeleteAttribute;
 using HttpGetAttribute = Microsoft.AspNetCore.Mvc.HttpGetAttribute;
 using HttpPostAttribute = Microsoft.AspNetCore.Mvc.HttpPostAttribute;
 using HttpPutAttribute = Microsoft.AspNetCore.Mvc.HttpPutAttribute;
 using RouteAttribute = Microsoft.AspNetCore.Mvc.RouteAttribute;
-
+using AuthorizeAttribute = Microsoft.AspNetCore.Authorization.AuthorizeAttribute;
 namespace LibApp.Controllers.Api
 {
     [Route("api/[controller]")]
@@ -24,94 +21,102 @@ namespace LibApp.Controllers.Api
     [Authorize]
     public class CustomersController : ControllerBase
     {
-        public CustomersController(ApplicationDbContext context, IMapper mapper)
+        private readonly ICustomerRepository _customerRepository;
+        private readonly IMapper _mapper;
+        public CustomersController(ICustomerRepository customerRepository, IMapper mapper)
         {
-            _context = context;
+            _customerRepository = customerRepository;
             _mapper = mapper;
         }
 
-        // GET /api/customers
         [HttpGet]
+        [Authorize(Roles = "StoreManager,Owner")]
         public IActionResult GetCustomers(string query = null)
         {
-            IEnumerable<Customer> customerQuery = _context.Customers
-                                .Include(c => c.MembershipType)
-                                .ToList();
+            IEnumerable<Customer> customersQuery = _customerRepository.GetCustomers();
 
-            if (!String.IsNullOrWhiteSpace(query))
+            if (!string.IsNullOrWhiteSpace(query))
             {
-                customerQuery = customerQuery.Where(c => c.Name.Contains(query));
+                customersQuery = customersQuery.Where(c => c.Name.Contains(query));
             }
 
-            var customerDtos = customerQuery.Select(_mapper.Map<Customer, CustomerDto>);
+            var customerDtos = customersQuery
+                .ToList()
+                .Select(_mapper.Map<Customer, CustomerDto>);
 
             return Ok(customerDtos);
         }
 
-        // GET /api/customers/{id}
-        [HttpGet("{id}", Name = "GetCustomer")]
-        public async Task<IActionResult> GetCustomer(int id)
+        [HttpGet("{id}")]
+        [Authorize(Roles = "StoreManager,Owner")]
+        public IActionResult GetCustomer(int id)
         {
-            Console.WriteLine("START");
-            var customer = await _context.Customers.SingleOrDefaultAsync(c => c.Id == id);
-            await Task.Delay(2000);
+            Console.WriteLine("Request beginning");
 
+            var customer = _customerRepository.GetCustomerById(id);
             if (customer == null)
             {
-                throw new HttpResponseException(HttpStatusCode.NotFound);
+                throw new HttpResponseException(System.Net.HttpStatusCode.NotFound);
             }
-            
-            Console.WriteLine("END");
+
+            Console.WriteLine("Request end");
 
             return Ok(_mapper.Map<CustomerDto>(customer));
         }
 
-        // POST /api/customers
         [HttpPost]
+        [Authorize(Roles = "Owner")]
         public IActionResult CreateCustomer(CustomerDto customerDto)
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest();
+                throw new HttpResponseException(System.Net.HttpStatusCode.BadRequest);
             }
 
             var customer = _mapper.Map<Customer>(customerDto);
-            _context.Customers.Add(customer);
-            _context.SaveChanges();
+            _customerRepository.AddCustomer(customer);
+            _customerRepository.Save();
             customerDto.Id = customer.Id;
 
             return CreatedAtRoute(nameof(GetCustomer), new { id = customerDto.Id }, customerDto);
         }
 
-        // PUT /api/customers/{id}
         [HttpPut("{id}")]
-        public void UpdateCustomer(int id, CustomerDto customerDto)
+        [Authorize(Roles = "Owner")]
+        public IActionResult UpdateCustomer(int id, CustomerDto customerDto)
         {
-            var customerInDb = _context.Customers.SingleOrDefault(c => c.Id == id);
+            if (!ModelState.IsValid)
+            {
+                throw new HttpResponseException(System.Net.HttpStatusCode.BadRequest);
+            }
+
+            var customerInDb = _customerRepository.GetCustomerById(id);
             if (customerInDb == null)
             {
-                throw new HttpResponseException(HttpStatusCode.NotFound);
+                throw new HttpResponseException(System.Net.HttpStatusCode.NotFound);
             }
+
 
             _mapper.Map(customerDto, customerInDb);
-            _context.SaveChanges();
+            _customerRepository.UpdateCustomer(customerInDb);
+            _customerRepository.Save();
+            return Ok(customerInDb);
         }
 
-        // DELETE /api/customers/{id}
         [HttpDelete("{id}")]
-        public void DeleteCustomer(int id)
+        [Authorize(Roles = "Owner")]
+        public IActionResult DeleteCustomer(int id)
         {
-            var customerInDb = _context.Customers.SingleOrDefault(c => c.Id == id);
+            var customerInDb = _customerRepository.GetCustomerById(id);
             if (customerInDb == null)
             {
-                throw new HttpResponseException(HttpStatusCode.NotFound);
+                throw new HttpResponseException(System.Net.HttpStatusCode.NotFound);
             }
 
-            _context.Customers.Remove(customerInDb);
-            _context.SaveChanges();
+            _customerRepository.DeleteCustomer(id);
+            _customerRepository.Save();
+            return NoContent();
         }
 
-        private ApplicationDbContext _context;
-        private readonly IMapper _mapper;
     }
 }

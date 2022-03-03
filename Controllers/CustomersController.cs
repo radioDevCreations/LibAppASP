@@ -1,32 +1,32 @@
 using Microsoft.AspNetCore.Mvc;
-using System.Linq;
-using LibApp.Data;
+using System;
+using LibApp.Models;
 using LibApp.ViewModels;
 using Microsoft.EntityFrameworkCore;
-using LibApp.Models;
-using System;
+using LibApp.Interfaces;
+using AuthorizeAttribute = Microsoft.AspNetCore.Authorization.AuthorizeAttribute;
 
 namespace LibApp.Controllers
 {
     public class CustomersController : Controller
     {
-        private readonly ApplicationDbContext _context;
+        private readonly ICustomerRepository _customerRepository;
+        private readonly IMembershipTypeRepository _membershipTypeRepository;
 
-        public CustomersController(ApplicationDbContext context)
+        public CustomersController(ICustomerRepository customerRepository, IMembershipTypeRepository membershipTypeRepository)
         {
-            _context = context;
+            _customerRepository = customerRepository;
+            _membershipTypeRepository = membershipTypeRepository;
         }
-
+        [Authorize(Roles = "StoreManager,Owner")]
         public ViewResult Index()
-        {            
+        {
             return View();
         }
-
+        [Authorize(Roles = "StoreManager,Owner")]
         public IActionResult Details(int id)
         {
-            var customer = _context.Customers
-                .Include(c => c.MembershipType)
-                .SingleOrDefault(c => c.Id == id);
+            var customer = _customerRepository.GetCustomerById(id);
 
             if (customer == null)
             {
@@ -35,22 +35,23 @@ namespace LibApp.Controllers
 
             return View(customer);
         }
-
+        [Authorize(Roles = "Owner")]
         public IActionResult New()
         {
-            var membershipTypes = _context.MembershipTypes.ToList();
+            var membershipTypes = _membershipTypeRepository.GetMembershipTypes();
 
             var viewModel = new CustomerFormViewModel()
             {
                 MembershipTypes = membershipTypes
             };
 
+
             return View("CustomerForm", viewModel);
         }
-
+        [Authorize(Roles = "Owner")]
         public IActionResult Edit(int id)
         {
-            var customer = _context.Customers.SingleOrDefault(c => c.Id == id);
+            var customer = _customerRepository.GetCustomerById(id);
             if (customer == null)
             {
                 return NotFound();
@@ -58,7 +59,7 @@ namespace LibApp.Controllers
 
             var viewModel = new CustomerFormViewModel(customer)
             {
-                MembershipTypes = _context.MembershipTypes.ToList()
+                MembershipTypes = _membershipTypeRepository.GetMembershipTypes()
             };
 
             return View("CustomerForm", viewModel);
@@ -66,13 +67,14 @@ namespace LibApp.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Owner")]
         public IActionResult Save(Customer customer)
         {
             if (!ModelState.IsValid)
             {
                 var viewModel = new CustomerFormViewModel(customer)
                 {
-                    MembershipTypes = _context.MembershipTypes.ToList()
+                    MembershipTypes = _membershipTypeRepository.GetMembershipTypes(),
                 };
 
                 return View("CustomerForm", viewModel);
@@ -80,11 +82,11 @@ namespace LibApp.Controllers
 
             if (customer.Id == 0)
             {
-                _context.Customers.Add(customer);
+                _customerRepository.AddCustomer(customer);
             }
             else
             {
-                var customerInDb = _context.Customers.Single(c => c.Id == customer.Id);
+                var customerInDb = _customerRepository.GetCustomerById(customer.Id);
                 customerInDb.Name = customer.Name;
                 customerInDb.Birthdate = customer.Birthdate;
                 customerInDb.MembershipTypeId = customer.MembershipTypeId;
@@ -93,7 +95,7 @@ namespace LibApp.Controllers
 
             try
             {
-                _context.SaveChanges();
+                _customerRepository.Save();
             }
             catch (DbUpdateException e)
             {
@@ -101,7 +103,6 @@ namespace LibApp.Controllers
             }
 
             return RedirectToAction("Index", "Customers");
-
         }
     }
 }

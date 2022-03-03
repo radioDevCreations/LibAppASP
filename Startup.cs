@@ -37,6 +37,10 @@ namespace LibApp
                 .AddEntityFrameworkStores<ApplicationDbContext>();
             services.AddScoped<IBookRepository, BookRepository>();
             services.AddScoped<IGenreRepository, GenreRepository>();
+            services.AddScoped<IMembershipTypeRepository, MembershipTypeRepository>();
+            services.AddScoped<ICustomerRepository, CustomerRepository>();
+            services.AddScoped<IRentalRepository, RentalRepository>();
+            services.AddControllersWithViews();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -84,22 +88,6 @@ namespace LibApp
                 if (!roleExist)
                 {
                     roleResult = await RoleManager.CreateAsync(new IdentityRole(roleName));
-                }
-                var user = new IdentityUser()
-                {
-                    Email = roleName + "@mail.com",
-                    UserName = roleName + "@mail.com",
-                    EmailConfirmed = true,
-                };
-
-                var fetchedUser = await UserManager.FindByEmailAsync(user.Email);
-                if (fetchedUser == null)
-                {
-                    var newUser = await UserManager.CreateAsync(user, "password123");
-                    if (newUser.Succeeded)
-                    {
-                        await UserManager.AddToRoleAsync(user, roleName);
-                    }
                 }
             }
         }

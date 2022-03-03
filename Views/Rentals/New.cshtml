@@ -1,4 +1,4 @@
-﻿@{ 
+﻿@{
     ViewBag.Title = "New Rental";
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
@@ -9,7 +9,7 @@
     <div class="form-group">
         <label>Customer</label>
         <div class="tt-container">
-            <input id="customer" type="text" required data-rule-validCustomer="true" value="" class="form-control" />
+            <input id="customer" type="text" value="" class="form-control" />
         </div>
     </div>
     <div class="form-group">
@@ -18,21 +18,23 @@
             <input id="book" type="text" value="" class="form-control" />
         </div>
     </div>
+    <ul id="books" class="list-group"></ul>
 
-    <ul id="books" class="list-group col-4"></ul>
-
-    <button class="btn btn-primary">Submit</button>
+    <div class="row">
+        <div class="col-md-4 col-sm-4">
+            <button class="btn btn-primary">Submit</button>
+        </div>
+    </div>
 </form>
 
-@section Scripts {
+@section Scripts
+{
     <script>
-
         $(document).ready(function () {
             var formData = {
                 customerId: 0,
                 bookIds: []
             };
-
             var customers = new Bloodhound({
                 datumTokenizer: Bloodhound.tokenizers.obj.whitespace('name'),
                 queryTokenizer: Bloodhound.tokenizers.whitespace,
@@ -41,20 +43,18 @@
                     wildcard: '%QUERY'
                 }
             });
-
             $('#customer').typeahead(
                 {
-                    minLenght: 3,
+                    minLength: 3,
                     highlight: true
                 },
                 {
-                name: 'customers',
-                display: 'name',
-                source: customers
+                    name: 'customers',
+                    display: 'name',
+                    source: customers
                 }).on("typeahead:select", function (e, customer) {
                     formData.customerId = customer.id;
                 });
-
             var books = new Bloodhound({
                 datumTokenizer: Bloodhound.tokenizers.obj.whitespace('name'),
                 queryTokenizer: Bloodhound.tokenizers.whitespace,
@@ -63,10 +63,9 @@
                     wildcard: '%QUERY'
                 }
             });
-
             $('#book').typeahead(
                 {
-                    minLenght: 3,
+                    minLength: 3,
                     highlight: true
                 },
                 {
@@ -74,37 +73,26 @@
                     display: 'name',
                     source: books
                 }).on("typeahead:select", function (e, book) {
+                    $("#books").append("<li class='list-group-item'>" + book.name + "</li>");
+                    $("#book").typeahead("val", "");
                     formData.bookIds.push(book.id);
-                    $('#book').typeahead("val", "");
-                    $('#books').append("<li class='list-group-item'>" + book.name + "</li>");
                 });
-
-            $.validator.addMethod("validCustomer", function () {
-                return formData.customerId && formData.customerId !== 0;
-            }, "Please select a valid customer");
-
-            var validator = $("#newRental").validate({
-                submitHandler: function () {
-                    $.ajax({
-                        url: "/api/newRentals/",
-                        type: "POST",
-                        contentType: "application/json;charset=utf-8",
-                        dataType: "html"
-                    }).done(function () {
-                        toastr.success("Rental successfully added");
-                        $('#customer').typeahead("val", "");
-                        $('#book').typeahead("val", "");
-                        $('#books').empty();
-                        formData = {
-                            customerId: 0,
-                            bookIds: []
-                        };
-                        validator.resetForm();
-                    }).fail(function () {
-                        toastr.success("Rental failed");
-                    });
-                    return false;
-                }
+            $("#newRental").submit(function (e) {
+                e.preventDefault();
+                var postData = JSON.stringify(formData);
+                $.ajax({
+                    url: "/api/newRentals",
+                    type: "POST",
+                    contentType: "application/json;charset=utf-8",
+                    dataType: 'html',
+                    data: postData,
+                    success: function () {
+                        console.log("Success " + postData);
+                    },
+                    fail: function () {
+                        console.log("Failure " + postData);
+                    }
+                })
             });
         });
     </script>
