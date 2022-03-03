@@ -36,7 +36,7 @@ namespace LibApp
                 .AddRoles<IdentityRole>()
                 .AddEntityFrameworkStores<ApplicationDbContext>();
             services.AddScoped<IBookRepository, BookRepository>();
-            services.AddControllersWithViews();
+            services.AddScoped<IGenreRepository, GenreRepository>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
